@@ -1,0 +1,2 @@
+#CRTFv0 CASA Region Text Format version 0
+poly [[18:29:48.73747, +001.15.26.9198], [18:29:51.06264, +001.15.26.8590], [18:29:51.44924, +001.15.18.8594], [18:29:51.44695, +001.14.59.2488], [18:29:50.42893, +001.14.52.7386], [18:29:48.73342, +001.14.52.0567]] coord=J2000, corr=[I], linewidth=1, linestyle=-, symsize=1, symthick=1, color=magenta, font=Helvetica, fontsize=11, fontstyle=normal, usetex=false
