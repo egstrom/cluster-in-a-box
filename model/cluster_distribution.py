@@ -7,9 +7,10 @@ from os import listdir
 from os.path import isfile, join
 from matplotlib.patches import Ellipse
 from astropy.io import fits
-import pdb
 from scipy.special import lambertw
 import sys
+from sympy.solvers import nsolve
+from sympy import Symbol, exp
 
 
 ################################################################################
@@ -57,9 +58,31 @@ class Mod_MyFunctions:
 		age_frac = numpy.asarray([0.068, 0.211, 0.102, 0.545, 0.075])
 		age_0 = 1.0
 
+		lmbda_obs = numpy.zeros(5)
 		lmbda = numpy.zeros(5)
-		for i in range(0,len(age_frac)): lmbda[i] = log(age_frac[i])/(-age_0)
+		for i in range(0,len(age_frac)): lmbda_obs[i] = log(age_frac[i])/(-age_0)
 
+		# Get values of lambda corresponding to observed age distribution
+		# Note that the initial guesses are specific to the Class distribution in Perseus at 1 Myr
+		x = Symbol('x')
+		lmbda[0] = nsolve(exp(-x * age_0) - age_frac[0], x, [lmbda_obs[0]])
+		lmbda[1] = nsolve(lmbda[0]/(x-lmbda[0]) * (exp(-lmbda[0]*age_0) - exp(-x*age_0)) - age_frac[1], x, [lmbda_obs[1]])
+		lmbda[2] = nsolve(lmbda[0]*lmbda[1] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(x-lmbda[0]) + 
+			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(x-lmbda[1]) + 
+			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x))-age_frac[2], x, [6.0])
+		lmbda[3] = nsolve(lmbda[0]*lmbda[1]*lmbda[2] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(x-lmbda[0]) +
+			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(x-lmbda[1]) + 
+			exp(-lmbda[2]*age_0)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(x-lmbda[2]) + 
+			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x)/(lmbda[2]-x)) - age_frac[3], x, [0.3])
+		lmbda[4] = nsolve(lmbda[0]*lmbda[1]*lmbda[2]*lmbda[3] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(lmbda[3]-lmbda[0])/(x-lmbda[0]) +
+			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(lmbda[3]-lmbda[1])/(x-lmbda[1]) + 
+			exp(-lmbda[2]*age_0)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(lmbda[3]-lmbda[2])/(x-lmbda[2]) + 
+			exp(-lmbda[3]*age_0)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3])/(x-lmbda[3]) + 
+			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x)/(lmbda[2]-x)/(lmbda[3]-x)) - age_frac[4], x, [-0.1])
+
+		print lmbda
+
+		# Calculate new fractional populations, setting Class III equal to any leftovers
 		self.frac = numpy.zeros(5)
 		self.frac[0] = exp(-lmbda[0]*age)
 		self.frac[1] = lmbda[0]/(lmbda[1]-lmbda[0]) * (exp(-lmbda[0]*age) - exp(-lmbda[1]*age))
@@ -280,7 +303,6 @@ class Mod_distribution:
 
     	### Cluster parameters
 		self.N = 3000   # number of sources
-		self.dist = 3000.   # Distance in pc
 
 		### Initial mass function (currently only Chabrier 2003 IMF available)
 		self.imf_type = 'standard'
@@ -293,7 +315,7 @@ class Mod_distribution:
 
 		self.dv = 2.0   # internal velocity dispersion (only relevant if creating spectral cubes; not implemented at the moment)
 
-		self.age = 0.1   # Cluster age
+		self.age = 1.0   # Cluster age
 
 		self.massrad=Mod_MassRad()
 		self.myplot=Mod_MyPlot()
@@ -324,14 +346,13 @@ class Mod_distribution:
 		for i in range(0,numpy.size(n)): 
 			if n[i] > 0: 
 				temp2[i] = log10(n[i])
-		plt.clf()
+
 		fig = plt.figure(figsize=(8, 8))
 		for i in range(0,self.N): plt.plot(self.massrad.x[i],self.massrad.y[i],'ob', ms=3*mass[i]**0.5, alpha=0.5)
 		plt.minorticks_on()
 		plt.xlabel('x (pc)')
 		plt.ylabel('y (pc)')
 
-		self.myplot.set_defaults()
 		self.myplot.set_defaults()
 
 		a = plt.axes([0.20, 0.19, 0.2, 0.2])
