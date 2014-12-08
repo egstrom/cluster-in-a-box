@@ -5,9 +5,6 @@ import pylab
 import matplotlib.pyplot as plt
 from os import listdir
 from os.path import isfile, join
-from matplotlib.patches import Ellipse
-from astropy.io import fits
-from scipy.special import lambertw
 import sys
 from sympy.solvers import nsolve
 from sympy import Symbol, exp
@@ -22,15 +19,32 @@ class Mod_MyFunctions:
 	def __init__(self):
 		pass
 
-	def imf(self, x):
+	def imf(self, x, imf_type):
 
 		# Chabrier (2003) IMF for young clusters plus disk stars: lognorm and power-law tail
-		ml = numpy.asarray((x <= 1.0).nonzero())[0]
-		mh = numpy.asarray((x > 1.0).nonzero())[0]
-		y = numpy.zeros(len(x))
-		for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
-		for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-2.3)
-		return y
+		if imf_type == 0:
+			ml = numpy.asarray((x <= 1.0).nonzero())[0]
+			mh = numpy.asarray((x > 1.0).nonzero())[0]
+			y = numpy.zeros(len(x))
+			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
+			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-2.3)
+			return y
+
+		if imf_type == 1:
+			ml = numpy.asarray((x <= 1.0).nonzero())[0]
+			mh = numpy.asarray((x > 1.0).nonzero())[0]
+			y = numpy.zeros(len(x))
+			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
+			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-1.3)
+			return y
+
+		if imf_type == 2:
+			ml = numpy.asarray((x <= 1.0).nonzero())[0]
+			mh = numpy.asarray((x > 1.0).nonzero())[0]
+			y = numpy.zeros(len(x))
+			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
+			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-3.3)
+			return y
 
 
 	def mass_dist(self, pdf, 
@@ -38,14 +52,15 @@ class Mod_MyFunctions:
 		mmax = 100.0, 
 		ymin = 0, 
 		ymax = 1, 
-		N = 3000):
+		Nn = 3000, 
+		imf_type = 0):
 
 		result = []
-		while len(result) < N:
+		while len(result) < Nn:
 			x = numpy.random.uniform(mmin, mmax, size=1000)
 			y = numpy.random.uniform(ymin, ymax, size=1000)
-			result.extend(x[numpy.where(y < pdf(x))])
-		self.md = numpy.array(result[:N])
+			result.extend(x[numpy.where(y < pdf(x, imf_type))])
+		self.md = numpy.array(result[:Nn])
 		return self.md
 
 	def age_dist(self, age=1.0):
@@ -80,8 +95,6 @@ class Mod_MyFunctions:
 			exp(-lmbda[3]*age_0)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3])/(x-lmbda[3]) + 
 			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x)/(lmbda[2]-x)/(lmbda[3]-x)) - age_frac[4], x, [-0.1])
 
-		print lmbda
-
 		# Calculate new fractional populations, setting Class III equal to any leftovers
 		self.frac = numpy.zeros(5)
 		self.frac[0] = exp(-lmbda[0]*age)
@@ -103,6 +116,8 @@ class Mod_MyFunctions:
 		self.frac[4] = 1. - sum(self.frac[:4])
 
 		return self.frac
+
+myf=Mod_MyFunctions()
 
 
 ################################################################################
@@ -203,41 +218,43 @@ class Mod_MassRad:
     	alpha = 0.33, 
     	p = 1.0,
     	dv = 2.0,
-		age = 1.0):
+		age = 1.0,
+		imf_type = 0):
 
 		# Protostellar masses
 		# 1. Define IMF
 
-		self.myf=Mod_MyFunctions()
-		age_temp = self.myf.age_dist(age=age)
-		print age_temp
+		f=open('output_distribution.dat','w')
 
-		m_temp = self.myf.mass_dist(self.myf.imf, mmin = 0.01, mmax = 100., ymin = 0., ymax = 50., N = N)
+		age_temp = myf.age_dist(age=age)
+		print 'Age fractions calculated'
+		f.write('Age distribution (Class 0, I, Flat, II, III): %4.2f, %4.2f, %4.2f, %4.2f, %4.2f \n' %(age_temp[0], age_temp[1], age_temp[2], age_temp[3], age_temp[4])) 
 
-		# m_temp = 1./numpy.random.lognormal(mean=mean, sigma=sigma, size=(N))
-		print ' '
-		print 'min(M), max(M) = %4.2f, %4.2f Msun' %(min(m_temp), max(m_temp))
+		m_temp = myf.mass_dist(myf.imf, mmin = 0.01, mmax = 100., ymin = 0., ymax = 50., Nn = N, imf_type = imf_type)
+		print 'Mass distribution calculated'
+
+		f.write('min(M), max(M) = %4.2f, %4.2f Msun\n' %(min(m_temp), max(m_temp)))
 
 		# 2. Sort out BD, LM and HM stars; for this project, ignore BD and HM
 		hm = numpy.asarray((m_temp > 10.).nonzero())[0]
 		lm = numpy.asarray(((m_temp <= 10.) & (m_temp > 0.05)).nonzero())[0]
 		bd = numpy.asarray((m_temp <= 0.05).nonzero())[0]
 
-		print ' '
-		print 'Number of HM cores: %3i' %(numpy.size(hm))
-		print 'Number of LM cores: %3i' %(numpy.size(lm))
-		print 'Number of BD cores: %3i' %(numpy.size(bd))
+		f.write(' \n')
+		f.write('Number of HM cores: %3i \n' %(numpy.size(hm)))
+		f.write('Number of LM cores: %3i \n' %(numpy.size(lm)))
+		f.write('Number of BD cores: %3i \n' %(numpy.size(bd)))
 
-		# 3. If Class 0 source, assume envelope mass is 3 times higher; for Class I's, M_env is twice higher
+		# 3. If Class 0 source, assume envelope mass is 3 times higher; for Class I's, M_env is 1.5 times higher
 
 		nC0 = numpy.round(numpy.size(lm)*age_temp[0])
 		nCI = numpy.round(numpy.size(lm)*age_temp[1])
 
-		print ' '
-		print 'Number of LM Class 0 sources: %3i' %(nC0)
-		print 'Number of LM Class I sources: %3i' %(nCI)
+		f.write(' \n')
+		f.write('Number of LM Class 0 sources: %3i \n' %(nC0))
+		f.write('Number of LM Class I sources: %3i \n' %(nCI))
 
-		self.m = m_temp 
+		self.m = m_temp
 
 		lm0 = lm[:nC0]
 		lmi = lm[nC0:nC0+nCI]
@@ -246,7 +263,7 @@ class Mod_MassRad:
 		self.m[lm0] = 3. * m_temp[lm0]
 		self.m[lmi] = 1.5 * m_temp[lmi]
 
-		print 'Total cluster mass: %6.2f' %(sum(self.m))
+		f.write('Total cluster mass: %6.2f \n' %(sum(self.m)))
 
 		self.mass_flag = numpy.zeros(N)
 		self.mass_flag[hm] = 2
@@ -264,6 +281,9 @@ class Mod_MassRad:
 		self.x = numpy.zeros(N)
 		self.y = numpy.zeros(N)
 
+		f.write('Rmax = %4.2f pc \n' %r)
+		f.close()
+
 		for i in range(0,N): 
 			self.x[i] = rad_m[i]*cos(phi[i])
 			self.y[i] = rad_m[i]*sin(phi[i])
@@ -273,12 +293,12 @@ class Mod_MassRad:
 		self.pa = numpy.random.rand(N)*180.
 		self.vel = numpy.random.normal(dv, size=N)
 
+		print 'Spatial distribution calculated'
+
 		f=open('distribution.dat','w')
 		f.write('x(pc)     y(pc)      M(Msun)    i(deg)     PA(deg)    vel(km/s)  Mass flag\n')
 		for i in range(0,N): f.write('%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10i\n' %(self.x[i],self.y[i],self.m[i],self.i[i],self.pa[i],self.vel[i],self.mass_flag[i]))
 		f.close()
-
-		print 'Rmax = %4.2f pc' %r
 
 
 ################################################################################
@@ -300,22 +320,26 @@ class Mod_distribution:
 		########################################################################
 		########################################################################
 
+		config={}
+		for line in file("cluster_setup.dat","r").readlines():
+			config[line.split()[0]]=float(line.split()[1])
+			# print "%20s=%.5e" % (line.split()[0],config[line.split()[0]])
 
-    	### Cluster parameters
-		self.N = 3000   # number of sources
+		### Cluster parameters
+		self.N = int(config['N'])   # number of sources
 
 		### Initial mass function (currently only Chabrier 2003 IMF available)
-		self.imf_type = 'standard'
+		self.imf_type = config['imf']
 
 		### Radial distribution of stars, from Adams et al. (2014)
-		self.r0 = 1.   # initial radius (pc)
-		self.N0 = 300.   # initial number of stars
-		self.alpha = 1./3.   # power-law index for maximum cluster radius
-		self.p = 1.0   # power-law index for radius PDF
+		self.r0 = config['r0']   # initial radius (pc)
+		self.N0 = int(config['N0'])   # initial number of stars
+		self.alpha = config['alpha']   # power-law index for maximum cluster radius
+		self.p = config['p']   # power-law index for radius PDF
 
-		self.dv = 2.0   # internal velocity dispersion (only relevant if creating spectral cubes; not implemented at the moment)
+		self.dv = config['dv']   # internal velocity dispersion (only relevant if creating spectral cubes; not implemented at the moment)
 
-		self.age = 1.0   # Cluster age
+		self.age = config['age']   # Cluster age
 
 		self.massrad=Mod_MassRad()
 		self.myplot=Mod_MyPlot()
@@ -333,7 +357,8 @@ class Mod_distribution:
 			alpha = self.alpha, 
 			p = self.p,
 			dv = self.dv,
-			age = self.age)
+			age = self.age,
+			imf_type = self.imf_type)
 
 
 		mass = self.massrad.m
