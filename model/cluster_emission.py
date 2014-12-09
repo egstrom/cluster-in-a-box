@@ -3,6 +3,7 @@ import pylab
 import matplotlib.pyplot as plt
 import matplotlib
 import astropy
+from astropy.io import fits
 from astropy.convolution import convolve, Gaussian2DKernel
 from scipy import stats
 import sys
@@ -179,108 +180,136 @@ class Mod_Template:
 	############################################################################
     def main(self):
 
-	self.myplot=Mod_MyPlot()
-
-	# Parameters relating to new image
-	dist = 3000 # distance to cluster in pc
-	pixel_size = 0.1 # pixel size in arcsec
-	resolution = 0.5 # resolution of new image
-	dim_pix = 256 # image size in pixels
-
-
-	### Parameters relating to template observations
-	# NOTE: JCMT observations still on T_A^* scale and intensity integration does not include dv (0.43 km/s)
-	# the factor "fudge" takes care of that below
-	beam_width = 15. # beam size in arcsec
-	fudge = 0.43
-	jy_k = 15.625   # K to Jy conversion specific to the JCMT (http://docs.jach.hawaii.edu/JCMT/HET/GUIDE/het_guide/); applies to T_A^*
-	eta_a = 0.53    # again, specific to the JCMT
-
-	tol = 0.6827   # fit tolerance: if probability greater, then hypothesis is rejected at 1 sigma
-
-	dist0 = 200.   # Reference distance (normalization)
-	obs = np.genfromtxt('/Users/kristensen/work/observations/jcmt/lm_ch3oh_7-6/template_data/properties.dat')
-	model = np.genfromtxt('distribution.dat', skip_header=1)
-
-	menv = obs[:,3]
-	# lbol = obs[:,5]   # not worried about Lbol for the moment, can come later
-
-	area_beam = obs[:,5] * obs[:,4]**2 / (np.pi * (beam_width/2.)**2)
-	i_dist = obs[:,8]*(obs[:,2]/dist0)**2 * fudge * jy_k/eta_a / area_beam
-
-	fit, flag = ofit.correlation_test(menv, i_dist, tol)
-
-	r0 = np.mean((((obs[:,2]*obs[:,4])**2*obs[:,5])/np.pi)**0.5)/dist # average radius of emitting region in arcsec
-	sep = np.mean(obs[:,2]*obs[:,7])/dist # average separation between outflow lobe and protostar in arcsec
-	npix = (r0 / pixel_size)**2  # number of pixels per lobe
-	npix_beam = np.pi*(resolution/2.)**2 / pixel_size**2   # number of pixels per beam
-
-	im = np.zeros([dim_pix, dim_pix])
-	half_im = dim_pix / 2
-
-	# Isolate Class 0 and I sources from the model
-	cl0 = np.asarray((model[:,6] == 10).nonzero())[0]
-	cl1 = np.asarray((model[:,6] == 11).nonzero())[0]
+		self.myplot=Mod_MyPlot()
 	
-	for i in cl0:
-		sepp = np.sin(model[i,3])*sep
-		xob = (model[i,0]*const.pcau/dist + np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
-		yob = (model[i,1]*const.pcau/dist + np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
-		xor = (model[i,0]*const.pcau/dist - np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
-		yor = (model[i,1]*const.pcau/dist - np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
+		config={}
+		for line in file("image_setup.dat","r").readlines():
+			config[line.split()[0]]=line.split()[1]
+	
+		# Parameters relating to new image
+		dist = float(config['D']) # distance to cluster in pc
+		pixel_size = float(config['psize']) # pixel size in arcsec
+		resolution = float(config['beam']) # resolution of new image
+		dim_pix = float(config['dim']) # image size in pixels
+	
+		tol = float(config['tol'])   # fit tolerance: if probability greater, then hypothesis is rejected at 1 sigma
 
-		if (np.abs(xob) < half_im) & (np.abs(xor) < half_im) & (np.abs(yob) < half_im) & (np.abs(yor) < half_im):
-			if flag == 'lin': 
-				i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
-			if flag == 'pow': 
-				i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
+		classI_scale = 0.1	
+	
+		### Parameters relating to template observations
+		# NOTE: JCMT observations still on T_A^* scale and intensity integration does not include dv (0.43 km/s)
+		# the factor "fudge" takes care of that below
+		beam_width = 15. # beam size in arcsec
+		fudge = 0.43
+		jy_k = 15.625   # K to Jy conversion specific to the JCMT (http://docs.jach.hawaii.edu/JCMT/HET/GUIDE/het_guide/); applies to T_A^*
+		eta_a = 0.53    # again, specific to the JCMT
+	
+		dist0 = 200.   # Reference distance (normalization)
+		obs = np.genfromtxt(config['obs'])
+		model = np.genfromtxt(config['dist'], skip_header=1)
+	
+		menv = obs[:,3]
+		# lbol = obs[:,5]   # not worried about Lbol for the moment, can come later
+	
+		area_beam = obs[:,5] * obs[:,4]**2 / (np.pi * (beam_width/2.)**2)
+		i_dist = obs[:,8]*(obs[:,2]/dist0)**2 * fudge * jy_k/eta_a / area_beam
+	
+		fit, flag = ofit.correlation_test(menv, i_dist, tol)
+	
+		r0 = np.mean((((obs[:,2]*obs[:,4])**2*obs[:,5])/np.pi)**0.5)/dist # average radius of emitting region in arcsec
+		sep = np.mean(obs[:,2]*obs[:,7])/dist # average separation between outflow lobe and protostar in arcsec
+		npix = (r0 / pixel_size)**2  # number of pixels per lobe
+		npix_beam = np.pi*(resolution/2.)**2 / pixel_size**2   # number of pixels per beam
+	
+		im = np.zeros([dim_pix, dim_pix])
+		half_im = dim_pix / 2
+	
+		# Isolate Class 0 and I sources from the model
+		cl0 = np.asarray((model[:,6] == 10).nonzero())[0]
+		cl1 = np.asarray((model[:,6] == 11).nonzero())[0]
 		
-			im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
-			im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
-
-		# im[xob-dx:xob+dx,yob-dx:yob+dx] = im[xob-dx:xob+dx,yob-dx:yob+dx]+iob /npix*npix_beam
-		# im[xor-dx:xor+dx,yor-dx:yor+dx] = im[xor-dx:xor+dx,yor-dx:yor+dx]+ior /npix*npix_beam
+		for i in cl0:
+			sepp = np.sin(model[i,3])*sep
+			xob = (model[i,0]*const.pcau/dist + np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
+			yob = (model[i,1]*const.pcau/dist + np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
+			xor = (model[i,0]*const.pcau/dist - np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
+			yor = (model[i,1]*const.pcau/dist - np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
 	
-	for i in cl1:
-		sepp = np.sin(model[i,3])*sep
-		xob = (model[i,0]*const.pcau/dist + np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
-		yob = (model[i,1]*const.pcau/dist + np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
-		xor = (model[i,0]*const.pcau/dist - np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
-		yor = (model[i,1]*const.pcau/dist - np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
-
-		if (np.abs(xob) < half_im) & (np.abs(xor) < half_im) & (np.abs(yob) < half_im) & (np.abs(yor) < half_im):
-			if flag == 'lin': 
-				i_peak = 0.1 * 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
-			if flag == 'pow': 
-				i_peak = 0.1 * 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
+			if (np.abs(xob) < half_im) & (np.abs(xor) < half_im) & (np.abs(yob) < half_im) & (np.abs(yor) < half_im):
+				if flag == 'lin': 
+					i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
+				if flag == 'pow': 
+					i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
+			
+				im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
+				im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
+	
+			# im[xob-dx:xob+dx,yob-dx:yob+dx] = im[xob-dx:xob+dx,yob-dx:yob+dx]+iob /npix*npix_beam
+			# im[xor-dx:xor+dx,yor-dx:yor+dx] = im[xor-dx:xor+dx,yor-dx:yor+dx]+ior /npix*npix_beam
 		
-			im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
-			im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
+		for i in cl1:
+			sepp = np.sin(model[i,3])*sep
+			xob = (model[i,0]*const.pcau/dist + np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
+			yob = (model[i,1]*const.pcau/dist + np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
+			xor = (model[i,0]*const.pcau/dist - np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
+			yor = (model[i,1]*const.pcau/dist - np.cos(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im)
 	
-	beam = Gaussian2DKernel(resolution/(2.*(2.*np.log(2.))**0.5))
-	im_obs = convolve(im, beam, boundary='extend')
-	
-	print "Peak intensity in image is %4.2f Jy/beam" %(im_obs.max())
-	
-	rnge = pixel_size*dim_pix/2.   # plotting range of image
-	plt.imshow(im_obs, vmin=0, vmax=np.floor(im_obs.max()), aspect='equal', extent=(rnge,-rnge,-rnge,rnge), cmap='PuRd')
-	
-	plt.xlabel('x (arcsec)')
-	plt.ylabel('y (arcsec)')
+			if (np.abs(xob) < half_im) & (np.abs(xor) < half_im) & (np.abs(yob) < half_im) & (np.abs(yor) < half_im):
+				if flag == 'lin': 
+					i_peak = classI_scale * 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
+				if flag == 'pow': 
+					i_peak = classI_scale * 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
+			
+				im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
+				im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
+		
+		beam = Gaussian2DKernel(resolution/(2.*(2.*np.log(2.))**0.5))
+		im_obs = convolve(im, beam, boundary='extend')
+		
 
-	plt.minorticks_on()
-	
-	cbar = plt.colorbar()
-	cbar.set_label('Jy km s$^{-1}$ beam$^{-1}$')
-	
-	fig = plt.gcf()
-	fig.set_size_inches(8,6)
+		header = fits.Header()
+		header['BMAJ'] = resolution / 3600.
+		header['BMIN'] = resolution / 3600.
+		header['BPA'] = 0.0
+		header['BTYPE'] = 'Intensity'
+		header['BUNIT'] = 'JY/BEAM '
+		header['EQUINOX'] = 2.000000000000E+03
+		header['CTYPE1'] = 'RA---SIN'
+		header['CRVAL1'] = 0.0
+		header['CDELT1'] =  pixel_size/3600.
+		header['CRPIX1'] =  half_im
+		header['CUNIT1'] = 'deg     '
+		header['CTYPE2'] = 'DEC--SIN'
+		header['CRVAL2'] = 0.0
+		header['CDELT2'] =  pixel_size/3600.
+		header['CRPIX2'] =  half_im
+		header['CUNIT2'] = 'deg     '
+		header['RESTFRQ'] =   3.384090000000E+11
+		header['SPECSYS'] = 'LSRK    '
+		hdu = fits.PrimaryHDU(im_obs, header=header)
+		hdu.writeto('cluster_emission.fits', clobber = True)
 
-	self.myplot.set_defaults()
-	self.myplot.set_defaults()
-
-	plt.savefig('template_basic.pdf')
-	plt.show()
+		print "Peak intensity in image is %4.2f Jy/beam" %(im_obs.max())
+		
+		rnge = pixel_size*dim_pix/2.   # plotting range of image
+		plt.imshow(im_obs, vmin=0, vmax=np.floor(im_obs.max()), aspect='equal', extent=(rnge,-rnge,-rnge,rnge), cmap='PuRd')
+		
+		plt.xlabel('x (arcsec)')
+		plt.ylabel('y (arcsec)')
+	
+		plt.minorticks_on()
+		
+		cbar = plt.colorbar()
+		cbar.set_label('Jy km s$^{-1}$ beam$^{-1}$')
+		
+		fig = plt.gcf()
+		fig.set_size_inches(8,6)
+	
+		self.myplot.set_defaults()
+		self.myplot.set_defaults()
+	
+		plt.savefig('template_basic.pdf')
+		plt.show()
 	
 
 ################################################################################
