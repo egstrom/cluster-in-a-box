@@ -126,11 +126,11 @@ class ObsFit:
 		se_b = (np.sum(e**2) / np.sum((x - np.mean(x))**2))**0.5
 		t_b = b / se_b
 		p_b = stats.t.sf(np.abs(t_b), df)*2
+		# print t_b, stats.t.ppf(0.687, 8)*se_b
 
 		se_a = (np.sum(e**2)/df*(1./df+np.mean(x)**2/np.sum((x-np.mean(x))**2)))**0.5
 		t_a = a / se_a
 		p_a = stats.t.sf(np.abs(t_a), df)*2
-
 		return np.asarray([a, b, p_a, p_b])
 
 
@@ -216,7 +216,9 @@ class Mod_Template:
 	
 		fit, flag = ofit.correlation_test(menv, i_dist, tol)
 	
-		r0 = np.mean((((obs[:,2]*obs[:,4])**2*obs[:,5])/np.pi)**0.5)/dist # average radius of emitting region in arcsec
+		# r0 = np.mean((((obs[:,2]*obs[:,4])**2*obs[:,5])/np.pi)**0.5)/dist # average radius of emitting region in arcsec
+		r0 = np.mean((((obs[:,5]*(obs[:,4])**2)**0.5/np.pi)**2 - (beam_width/2.)**2)**0.5*obs[:,2])/dist
+		# print r0
 		sep = np.mean(obs[:,2]*obs[:,7])/dist # average separation between outflow lobe and protostar in arcsec
 		npix = (r0 / pixel_size)**2  # number of pixels per lobe
 		npix_beam = np.pi*(resolution/2.)**2 / pixel_size**2   # number of pixels per beam
@@ -263,10 +265,9 @@ class Mod_Template:
 				im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
 				im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
 		
-		beam = Gaussian2DKernel(resolution/(2.*(2.*np.log(2.))**0.5))
-		im_obs = convolve(im, beam, boundary='extend')
+		beam = Gaussian2DKernel(resolution/pixel_size/(2.*(2.*np.log(2.))**0.5))
+		im_obs = convolve(im, beam, boundary='extend')/npix_beam
 		
-
 		header = fits.Header()
 		header['BMAJ'] = resolution / 3600.
 		header['BMIN'] = resolution / 3600.
@@ -289,10 +290,10 @@ class Mod_Template:
 		hdu = fits.PrimaryHDU(im_obs, header=header)
 		hdu.writeto('cluster_emission.fits', clobber = True)
 
-		print "Peak intensity in image is %4.2f Jy/beam" %(im_obs.max())
+		print "Peak intensity in image is %4.2f Jy km/s/beam" %(im_obs.max())
 		
 		rnge = pixel_size*dim_pix/2.   # plotting range of image
-		plt.imshow(im_obs, vmin=0, vmax=np.floor(im_obs.max()), aspect='equal', extent=(rnge,-rnge,-rnge,rnge), cmap='PuRd')
+		plt.imshow(im_obs, vmin=0, vmax=im_obs.max(), aspect='equal', extent=(rnge,-rnge,-rnge,rnge), cmap='PuRd')
 		
 		plt.xlabel('x (arcsec)')
 		plt.ylabel('y (arcsec)')
@@ -301,14 +302,11 @@ class Mod_Template:
 		
 		cbar = plt.colorbar()
 		cbar.set_label('Jy km s$^{-1}$ beam$^{-1}$')
-		
-		fig = plt.gcf()
-		fig.set_size_inches(8,6)
 	
 		self.myplot.set_defaults()
 		self.myplot.set_defaults()
 	
-		plt.savefig('template_basic.pdf')
+		plt.savefig('cluster_emission.pdf')
 		plt.show()
 	
 
