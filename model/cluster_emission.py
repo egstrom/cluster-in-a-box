@@ -221,7 +221,7 @@ class Mod_Template:
 		# print r0
 		sep = np.mean(obs[:,2]*obs[:,7])/dist # average separation between outflow lobe and protostar in arcsec
 		npix = (r0 / pixel_size)**2  # number of pixels per lobe
-		npix_beam = np.pi*(resolution/2.)**2 / pixel_size**2   # number of pixels per beam
+		npix_beam = 2.*np.pi*(resolution/2./(2.*np.log(2.))**0.5)**2 / pixel_size**2   # number of pixels per beam
 	
 		im = np.zeros([dim_pix, dim_pix])
 		half_im = dim_pix / 2
