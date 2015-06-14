@@ -1,7 +1,7 @@
-dist distribution_models/distribution_standard.dat   # name of distribution file
-obs data/properties.dat                              # name of file with observational properties
-D 3000                                               # distance (pc)
-dim 256                                              # image size (pixels)
-psize 0.1                                            # pixel size (arcsec)
-beam 0.5                                             # beam (arcsec)
-tol 0.6827                                           # correlation tolerance
+dist distribution.dat                      # name of distribution file
+obs ../observations/properties.dat         # name of file with observational properties
+D 3000                                     # distance (pc)
+dim 256                                    # image size (pixels)
+psize 0.1                                  # pixel size (arcsec)
+beam 0.5                                   # beam (arcsec)
+tol 0.6827                                 # correlation tolerance
