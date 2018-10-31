@@ -1,8 +1,9 @@
-N 3000             # number of sources
-imf 0              # Initial mass function, 0 = standard, 1 = top-heavy, 2 = bottom-heavy
-age 1.0            # Age in Myr
-r0 1.              # initial radius (pc)
-N0 300.            # initial number of stars
+N     3000         # number of sources
+imf   0            # Initial mass function, 0 = standard, 1 = top-heavy, 2 = bottom-heavy
+age   1.0          # Age in Myr
+ccccc 0000000000   # Usually no need to modify anything below this line
+r0    1.           # initial radius (pc)
+N0    300.         # initial number of stars
 alpha 0.333        # power-law index for maximum cluster radius
-p 1.0              # power-law index for radius PDF
-dv 2.0             # internal velocity dispersion 
+p     1.5          # power-law index for radius PDF
+dv    2.0          # internal velocity dispersion (not currently used)
