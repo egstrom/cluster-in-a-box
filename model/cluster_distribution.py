@@ -21,47 +21,53 @@ class Mod_MyFunctions:
 
 	def imf(self, x, imf_type):
 
-		# Chabrier (2003) IMF for young clusters plus disk stars: lognorm and power-law tail
+	# Chabrier (2003) IMF for young clusters plus disk stars: lognorm and power-law tail
+		mnorm = 1.0
+		A1 = 0.158
+		mc = 0.079
+		sigma = 0.69
+		A2 = 4.43e-2
+		x0 = -1.3
+
 		if imf_type == 0:
-			ml = numpy.asarray((x <= 1.0).nonzero())[0]
-			mh = numpy.asarray((x > 1.0).nonzero())[0]
+			ml = numpy.asarray((x <= log10(mnorm)).nonzero())[0]
+			mh = numpy.asarray((x > log10(mnorm)).nonzero())[0]
 			y = numpy.zeros(len(x))
-			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
-			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-2.3)
+			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
+			for i in mh: y[i] = A2 * (10.**x[i])**(x0-1)
 			return y
 
 		if imf_type == 1:
 			ml = numpy.asarray((x <= 1.0).nonzero())[0]
 			mh = numpy.asarray((x > 1.0).nonzero())[0]
 			y = numpy.zeros(len(x))
-			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
-			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-1.3)
+			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
+			for i in mh: y[i] = A2 * (10.**x[i])**(x0-0)
 			return y
 
 		if imf_type == 2:
 			ml = numpy.asarray((x <= 1.0).nonzero())[0]
 			mh = numpy.asarray((x > 1.0).nonzero())[0]
 			y = numpy.zeros(len(x))
-			for i in ml: y[i] = 0.158/x[i]/log(10.) * exp(-(log10(x[i]) - log10(0.079))**2/2./0.69**2)
-			for i in mh: y[i] = 4.4e-2/log(10.) * x[i]**(-3.3)
+			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
+			for i in mh: y[i] = A2 * (10.**x[i])**(x0-2)
 			return y
 
 
-	def mass_dist(self, pdf, 
+	def mass_dist(self,
 		mmin = 0.01, 
 		mmax = 100.0, 
-		ymin = 0, 
-		ymax = 1, 
 		Nn = 3000, 
 		imf_type = 0):
-
+	
 		result = []
 		while len(result) < Nn:
-			x = numpy.random.uniform(mmin, mmax, size=1000)
-			y = numpy.random.uniform(ymin, ymax, size=1000)
-			result.extend(x[numpy.where(y < pdf(x, imf_type))])
-		self.md = numpy.array(result[:Nn])
-		return self.md
+			x = numpy.random.uniform(log10(mmin), log10(mmax), size=10*Nn)
+			y = numpy.random.uniform(0, 1, size=10*Nn)
+			result.extend(x[numpy.where(y < myf.imf(x, imf_type))])
+	
+		md = numpy.array(result[:Nn])
+		return 10**md
 
 	def age_dist(self, age=1.0):
 
@@ -106,11 +112,6 @@ class Mod_MyFunctions:
 			exp(-lmbda[1]*age)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(lmbda[3]-lmbda[1]) + 
 			exp(-lmbda[2]*age)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(lmbda[3]-lmbda[2]) + 
 			exp(-lmbda[3]*age)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3]))
-		# self.frac[4] = lmbda[0]*lmbda[1]*lmbda[2]*lmbda[3] * (exp(-lmbda[0]*age)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(lmbda[3]-lmbda[0])/(lmbda[4]-lmbda[0]) +
-		#	exp(-lmbda[1]*age)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(lmbda[3]-lmbda[1])/(lmbda[4]-lmbda[1]) + 
-		#	exp(-lmbda[2]*age)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(lmbda[3]-lmbda[2])/(lmbda[4]-lmbda[2]) + 
-		#	exp(-lmbda[3]*age)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3])/(lmbda[4]-lmbda[3]) + 
-		#	exp(-lmbda[4]*age)/(lmbda[0]-lmbda[4])/(lmbda[1]-lmbda[4])/(lmbda[2]-lmbda[4])/(lmbda[3]-lmbda[4]))
 
 		# Assume that everything ends up as Class III; no main sequence. An ok assumption when the interest is on Class 0/I sources
 		self.frac[4] = 1. - sum(self.frac[:4])
@@ -230,7 +231,7 @@ class Mod_MassRad:
 		print 'Age fractions calculated'
 		f.write('Age distribution (Class 0, I, Flat, II, III): %4.2f, %4.2f, %4.2f, %4.2f, %4.2f \n' %(age_temp[0], age_temp[1], age_temp[2], age_temp[3], age_temp[4])) 
 
-		m_temp = myf.mass_dist(myf.imf, mmin = 0.01, mmax = 100., ymin = 0., ymax = 50., Nn = N, imf_type = imf_type)
+		m_temp = myf.mass_dist(mmin = 0.01, mmax = 100., Nn = N, imf_type = imf_type)
 		print 'Mass distribution calculated'
 
 		f.write('min(M), max(M) = %4.2f, %4.2f Msun\n' %(min(m_temp), max(m_temp)))
@@ -275,7 +276,7 @@ class Mod_MassRad:
 		# Spatial distribution	
 		r = r0 * (N/N0)**alpha
 		rad = r*numpy.random.power(2.-p, size=(N))
-		rad_m = rad*(self.m/min(self.m))**(-0.1)
+		rad_m = rad*(self.m/min(self.m))**(-0.15)
 		phi = numpy.random.rand(N)*2*pi
 
 		self.x = numpy.zeros(N)

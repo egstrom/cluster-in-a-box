@@ -227,9 +227,10 @@ class Mod_Template:
 		half_im = dim_pix / 2
 	
 		# Isolate Class 0 and I sources from the model
-		cl0 = np.asarray((model[:,6] == 10).nonzero())[0]
+		# cl0 = np.asarray(((model[:,6] == 10)).nonzero())[0]
+		cl0 = np.asarray(((model[:,6] == 10) | (model[:,6] == 2)).nonzero())[0]
 		cl1 = np.asarray((model[:,6] == 11).nonzero())[0]
-		
+
 		for i in cl0:
 			sepp = np.sin(model[i,3])*sep
 			xob = (model[i,0]*const.pcau/dist + np.sin(model[i,4]*np.pi/180.)*sepp)/pixel_size#+half_im
@@ -239,10 +240,11 @@ class Mod_Template:
 	
 			if (np.abs(xob) < half_im) & (np.abs(xor) < half_im) & (np.abs(yob) < half_im) & (np.abs(yor) < half_im):
 				if flag == 'lin': 
-					i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
+					# i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (fit[0] + fit[1]*model[i,2])/npix*npix_beam
+					i_peak =  (fit[0] + fit[1]*model[i,2])/npix*npix_beam / (2. * np.pi * (r0/pixel_size/1.517)**2)
 				if flag == 'pow': 
 					i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
-			
+				print i_peak, model[i,2]
 				im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
 				im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
 	
