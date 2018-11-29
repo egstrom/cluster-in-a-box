@@ -190,7 +190,7 @@ class Mod_Template:
 		dist = float(config['D']) # distance to cluster in pc
 		pixel_size = float(config['psize']) # pixel size in arcsec
 		resolution = float(config['beam']) # resolution of new image
-		dim_pix = float(config['dim']) # image size in pixels
+		dim_pix = int(config['dim']) # image size in pixels
 	
 		tol = float(config['tol'])   # fit tolerance: if probability greater, then hypothesis is rejected at 1 sigma
 

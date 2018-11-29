@@ -248,8 +248,8 @@ class Mod_MassRad:
 
 		# 3. If Class 0 source, assume envelope mass is 3 times higher; for Class I's, M_env is 1.5 times higher
 
-		nC0 = numpy.round(numpy.size(lm)*age_temp[0])
-		nCI = numpy.round(numpy.size(lm)*age_temp[1])
+		nC0 = int(numpy.round(numpy.size(lm)*age_temp[0]))
+		nCI = int(numpy.round(numpy.size(lm)*age_temp[1]))
 
 		f.write(' \n')
 		f.write('Number of LM Class 0 sources: %3i \n' %(nC0))

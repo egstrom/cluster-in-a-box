@@ -1,5 +1,5 @@
 dist distribution.dat    # name of distribution file
-obs data/properties.dat  # name of file with observational properties
+obs properties.dat       # name of file with observational properties
 D 3000                   # distance (pc)
 dim 128                  # image size (pixels)
 psize 1.0                # pixel size (arcsec)
