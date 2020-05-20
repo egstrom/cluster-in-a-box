@@ -30,90 +30,76 @@ class Mod_MyFunctions:
 		x0 = -1.3
 
 		if imf_type == 0:
-			ml = numpy.asarray((x <= log10(mnorm)).nonzero())[0]
-			mh = numpy.asarray((x > log10(mnorm)).nonzero())[0]
-			y = numpy.zeros(len(x))
-			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
-			for i in mh: y[i] = A2 * (10.**x[i])**(x0-1)
-			return y
+			a1 = A1 * np.exp(-((x - np.log10(mc))**2)/2.0/sigma**2)
+			a2 = A2 * (10.0**x)**(x0-1)
+			return np.where(x <= np.log10(mnorm), a1, a2)
 
 		if imf_type == 1:
-			ml = numpy.asarray((x <= 1.0).nonzero())[0]
-			mh = numpy.asarray((x > 1.0).nonzero())[0]
-			y = numpy.zeros(len(x))
-			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
-			for i in mh: y[i] = A2 * (10.**x[i])**(x0-0)
-			return y
+			a1 = A1 * np.exp(-((x - np.log10(mc))**2)/2.0/sigma**2)
+			a2 = A2 * (10.0**x)**(x0-0)
+			return np.where(x <= np.log10(mnorm), a1, a2)
 
 		if imf_type == 2:
-			ml = numpy.asarray((x <= 1.0).nonzero())[0]
-			mh = numpy.asarray((x > 1.0).nonzero())[0]
-			y = numpy.zeros(len(x))
-			for i in ml: y[i] = A1 * exp(-(x[i] - log10(mc))**2/2./sigma**2)
-			for i in mh: y[i] = A2 * (10.**x[i])**(x0-2)
-			return y
+			a1 = A1 * np.exp(-((x - np.log10(mc))**2)/2.0/sigma**2)
+			a2 = A2 * (10.0**x)**(x0-2)
+			return np.where(x <= np.log10(mnorm), a1, a2)
 
 
 	def mass_dist(self,
 		mmin = 0.01, 
 		mmax = 100.0, 
-		Nn = 3000, 
-		imf_type = 0):
+		Mcm = 10000, 
+		imf_type = 0,
+		SFE = 0.03):
 	
-		result = []
-		while len(result) < Nn:
-			x = numpy.random.uniform(log10(mmin), log10(mmax), size=10*Nn)
-			y = numpy.random.uniform(0, 1, size=10*Nn)
-			result.extend(x[numpy.where(y < myf.imf(x, imf_type))])
-	
-		md = numpy.array(result[:Nn])
-		return 10**md
+		mmin_log = np.log10(mmin)
+        	mmax_log = np.log10(mmax)
 
-	def age_dist(self, age=1.0):
+        	chunksize = 1000
+        	result = np.array([], dtype=np.float64)
+        	while result.sum() <= SFE * Mcm:
+           	 	x = np.random.uniform(mmin_log, mmax_log, size=chunksize)
+            		y = np.random.uniform(0, 1, size=chunksize)
+            		result = np.hstack((result, 10 ** x[y < myf.imf(x, imf_type)]))
+        	return result[result.cumsum() <= SFE * Mcm]
 
-		# Half-lives from Dunham et al. (2014) and age distribution from C2D (Evans et al. 2009) and Sadavoy et al. 2014
-		# Note: Not correct half-lives: would need to be recalculated under the assumption of consecutive decay which is why
-		# the calculated age distribution does not match the input criteria
+	def age_dist(self, m_temp, r, tffscale = 1.0):
+		density=3*sum(m_temp)/(4*np.pi*r**3)
+		G=4.43*10**(-3) ##pc^3 Msol^-1 Myr^-2
+		tff=0.5427*1/np.sqrt(G*density) #free fall time for cluster
 
-		### Relative population fractions observed in Perseus where t = 1 Myr
-		age_frac = numpy.asarray([0.068, 0.211, 0.102, 0.545, 0.075])
-		age_0 = 1.0
+		age=tffscale*tff*np.random.uniform(0.0,1.0,size=1) #calculating current age from free fall time tff
 
-		lmbda_obs = numpy.zeros(5)
-		lmbda = numpy.zeros(5)
-		for i in range(0,len(age_frac)): lmbda_obs[i] = log(age_frac[i])/(-age_0)
+		lmbdaSF=1/age
 
-		# Get values of lambda corresponding to observed age distribution
-		# Note that the initial guesses are specific to the Class distribution in Perseus at 1 Myr
-		x = Symbol('x')
-		lmbda[0] = nsolve(exp(-x * age_0) - age_frac[0], x, [lmbda_obs[0]])
-		lmbda[1] = nsolve(lmbda[0]/(x-lmbda[0]) * (exp(-lmbda[0]*age_0) - exp(-x*age_0)) - age_frac[1], x, [lmbda_obs[1]])
-		lmbda[2] = nsolve(lmbda[0]*lmbda[1] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(x-lmbda[0]) + 
-			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(x-lmbda[1]) + 
-			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x))-age_frac[2], x, [6.0])
-		lmbda[3] = nsolve(lmbda[0]*lmbda[1]*lmbda[2] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(x-lmbda[0]) +
-			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(x-lmbda[1]) + 
-			exp(-lmbda[2]*age_0)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(x-lmbda[2]) + 
-			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x)/(lmbda[2]-x)) - age_frac[3], x, [0.3])
-		lmbda[4] = nsolve(lmbda[0]*lmbda[1]*lmbda[2]*lmbda[3] * (exp(-lmbda[0]*age_0)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(lmbda[3]-lmbda[0])/(x-lmbda[0]) +
-			exp(-lmbda[1]*age_0)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(lmbda[3]-lmbda[1])/(x-lmbda[1]) + 
-			exp(-lmbda[2]*age_0)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(lmbda[3]-lmbda[2])/(x-lmbda[2]) + 
-			exp(-lmbda[3]*age_0)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3])/(x-lmbda[3]) + 
-			exp(-x*age_0)/(lmbda[0]-x)/(lmbda[1]-x)/(lmbda[2]-x)/(lmbda[3]-x)) - age_frac[4], x, [-0.1])
+		lmbda=numpy.zeros(5)
 
-		# Calculate new fractional populations, setting Class III equal to any leftovers
+		### Relative population fractions observed in clouds where t = 1.2 Myr 
+
+		lmbda[0]=14.7
+		lmbda[1]=7.9
+		lmbda[2]=8.0
+		lmbda[3]=0.347
+
+		#Calculate new fractional populations, setting Class III equal to any leftovers
+
 		self.frac = numpy.zeros(5)
-		self.frac[0] = exp(-lmbda[0]*age)
-		self.frac[1] = lmbda[0]/(lmbda[1]-lmbda[0]) * (exp(-lmbda[0]*age) - exp(-lmbda[1]*age))
-		self.frac[2] = lmbda[0]*lmbda[1] * (exp(-lmbda[0]*age)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0]) + 
-			exp(-lmbda[1]*age)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1]) + 
-			exp(-lmbda[2]*age)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2]))
-		self.frac[3] = lmbda[0]*lmbda[1]*lmbda[2] * (exp(-lmbda[0]*age)/(lmbda[1]-lmbda[0])/(lmbda[2]-lmbda[0])/(lmbda[3]-lmbda[0]) +
-			exp(-lmbda[1]*age)/(lmbda[0]-lmbda[1])/(lmbda[2]-lmbda[1])/(lmbda[3]-lmbda[1]) + 
-			exp(-lmbda[2]*age)/(lmbda[0]-lmbda[2])/(lmbda[1]-lmbda[2])/(lmbda[3]-lmbda[2]) + 
-			exp(-lmbda[3]*age)/(lmbda[0]-lmbda[3])/(lmbda[1]-lmbda[3])/(lmbda[2]-lmbda[3]))
+
+		self.frac[0] = (lmbdaSF/lmbda[0])*(1-np.exp(-lmbda[0]*age))
+
+		self.frac[1] = (lmbdaSF/lmbda[1])*(1-(lmbda[1]/(lmbda[1]-lmbda[0]))*(np.exp(-lmbda[0]*age))-(lmbda[0]/(lmbda[0]-lmbda[1]))*np.exp(-lmbda[1]*age))
+
+		self.frac[2] = (lmbdaSF/lmbda[2])*(1-(lmbda[1]*lmbda[2])/((lmbda[2]-lmbda[0])*(lmbda[1]-lmbda[0]))*(np.exp(-lmbda[0]*age))-
+		    (lmbda[0]*lmbda[2])/((lmbda[2]-lmbda[1])*(lmbda[0]-lmbda[1]))*(np.exp(-lmbda[1]*age))-
+		    (lmbda[0]*lmbda[1])/((lmbda[0]-lmbda[2])*(lmbda[1]-lmbda[2]))*(np.exp(-lmbda[2]*age)))
+
+		self.frac[3] = (lmbdaSF/lmbda[3])*(1-(lmbda[1]*lmbda[2]*lmbda[3])/((lmbda[1]-lmbda[0])*(lmbda[2]-lmbda[0])*(lmbda[3]-lmbda[0]))*(np.exp(-lmbda[0]*age)) -
+		    (lmbda[0]*lmbda[2]*lmbda[3])/((lmbda[0]-lmbda[1])*(lmbda[2]-lmbda[1])*(lmbda[3]-lmbda[1]))*(np.exp(-lmbda[1]*age)) -
+		    (lmbda[0]*lmbda[1]*lmbda[3])/((lmbda[0]-lmbda[2])*(lmbda[1]-lmbda[2])*(lmbda[3]-lmbda[2]))*(np.exp(-lmbda[2]*age)) -
+		    (lmbda[0]*lmbda[1]*lmbda[2])/((lmbda[0]-lmbda[3])*(lmbda[1]-lmbda[3])*(lmbda[2]-lmbda[3]))*(np.exp(-lmbda[3]*age)))
 
 		# Assume that everything ends up as Class III; no main sequence. An ok assumption when the interest is on Class 0/I sources
+
 		self.frac[4] = 1. - sum(self.frac[:4])
 
 		return self.frac
@@ -213,93 +199,100 @@ class Mod_MassRad:
     	pass
 
     def mass_radius(self,
-    	N = 3000, 
-    	N0 = 300, 
-    	r0 = 1.0, 
-    	alpha = 0.33, 
-    	p = 1.0,
-    	dv = 2.0,
-		age = 1.0,
-		imf_type = 0):
+        Mcm=10000,
+        N0=300,
+        r0=1.0,
+        alpha=0.33,
+        p=1.0,
+        dv=2.0,
+        tffscale=1.0,
+        SFE=0.03,
+        imf_type=0):
 
-		# Protostellar masses
-		# 1. Define IMF
+        f=open('output_distribution','w')
 
-		f=open('output_distribution.dat','w')
+        m_temp = myf.mass_dist(mmin = 0.01, mmax = 100., Mcm = Mcm, imf_type = imf_type, SFE=SFE)
+        N=len(m_temp)
 
-		age_temp = myf.age_dist(age=age)
-		print 'Age fractions calculated'
-		f.write('Age distribution (Class 0, I, Flat, II, III): %4.2f, %4.2f, %4.2f, %4.2f, %4.2f \n' %(age_temp[0], age_temp[1], age_temp[2], age_temp[3], age_temp[4])) 
+        f.write('min(M), max(M) = %4.2f, %4.2f Msun\n' %(min(m_temp), max(m_temp)))
 
-		m_temp = myf.mass_dist(mmin = 0.01, mmax = 100., Nn = N, imf_type = imf_type)
-		print 'Mass distribution calculated'
+        self.m = m_temp
+        self.N = N
 
-		f.write('min(M), max(M) = %4.2f, %4.2f Msun\n' %(min(m_temp), max(m_temp)))
+        f.write('Total cluster mass: %6.2f \n' %(sum(self.m)))
 
-		# 2. Sort out BD, LM and HM stars; for this project, ignore BD and HM
-		hm = numpy.asarray((m_temp > 10.).nonzero())[0]
-		lm = numpy.asarray(((m_temp <= 10.) & (m_temp > 0.05)).nonzero())[0]
-		bd = numpy.asarray((m_temp <= 0.05).nonzero())[0]
+        # Spatial distribution  
+        r = r0 * (N/N0)**alpha
+        rad = r*numpy.random.power(2.-p, size=(N))
+        rad_m = rad*(self.m/min(self.m))**(-0.15)
+        phi = numpy.random.rand(N)*2*pi
 
-		f.write(' \n')
-		f.write('Number of HM cores: %3i \n' %(numpy.size(hm)))
-		f.write('Number of LM cores: %3i \n' %(numpy.size(lm)))
-		f.write('Number of BD cores: %3i \n' %(numpy.size(bd)))
+        self.x = numpy.zeros(N)
+        self.y = numpy.zeros(N)
 
-		# 3. If Class 0 source, assume envelope mass is 3 times higher; for Class I's, M_env is 1.5 times higher
+        f.write('Rmax = %4.2f pc \n' %r)
 
-		nC0 = int(numpy.round(numpy.size(lm)*age_temp[0]))
-		nCI = int(numpy.round(numpy.size(lm)*age_temp[1]))
+        # 2. Calculate age distribution
 
-		f.write(' \n')
-		f.write('Number of LM Class 0 sources: %3i \n' %(nC0))
-		f.write('Number of LM Class I sources: %3i \n' %(nCI))
+        age_temp= myf.age_dist(m_temp, r, tffscale = tffscale)
 
-		self.m = m_temp
+        f.write('Age distribution (Class 0, I, Flat, II, III): %4.2f, %4.2f, %4.2f, %4.2f, %4.2f \n' %(age_temp[0], age_temp[1], age_temp[2], age_temp[3], age_temp[4])) 
 
-		lm0 = lm[:nC0]
-		lmi = lm[nC0:nC0+nCI]
-		lmii = lm[nC0+nCI:]
 
-		self.m[lm0] = 3. * m_temp[lm0]
-		self.m[lmi] = 1.5 * m_temp[lmi]
+        # 3. Sort out BD, LM and HM stars; for this project, ignore BD and HM
+        hm = numpy.asarray((m_temp > 10.).nonzero())[0]
+        lm = numpy.asarray(((m_temp <= 10.) & (m_temp > 0.05)).nonzero())[0]
+        bd = numpy.asarray((m_temp <= 0.05).nonzero())[0]
 
-		f.write('Total cluster mass: %6.2f \n' %(sum(self.m)))
+        f.write(' \n')
+        f.write('Number of HM cores: %3i \n' %(numpy.size(hm)))
+        f.write('Number of LM cores: %3i \n' %(numpy.size(lm)))
+        f.write('Number of BD cores: %3i \n' %(numpy.size(bd)))
 
-		self.mass_flag = numpy.zeros(N)
-		self.mass_flag[hm] = 2
-		self.mass_flag[lm0] = 10
-		self.mass_flag[lmi] = 11
-		self.mass_flag[lmii] = 12
-		self.mass_flag[bd] = 0
 
-		# Spatial distribution	
-		r = r0 * (N/N0)**alpha
-		rad = r*numpy.random.power(2.-p, size=(N))
-		rad_m = rad*(self.m/min(self.m))**(-0.15)
-		phi = numpy.random.rand(N)*2*pi
+        nC0 = int(numpy.round(numpy.size(lm)*age_temp[0]))
+        nCI = int(numpy.round(numpy.size(lm)*age_temp[1]))
 
-		self.x = numpy.zeros(N)
-		self.y = numpy.zeros(N)
+        f.write(' \n')
+        f.write('Number of LM Class 0 sources: %3i \n' %(nC0))
+        f.write('Number of LM Class I sources: %3i \n' %(nCI))
 
-		f.write('Rmax = %4.2f pc \n' %r)
-		f.close()
+        lm0 = lm[:nC0]
+        lmi = lm[nC0:nC0+nCI]
+        lmii = lm[nC0+nCI:]
 
-		for i in range(0,N): 
-			self.x[i] = rad_m[i]*cos(phi[i])
-			self.y[i] = rad_m[i]*sin(phi[i])
+        # 4. If Class 0 source, assume envelope mass is 3 times higher; for Class I's, M_env is 1.5 times highe
 
-		# Outflow inclination, PA and protostellar velocity dispersion
-		self.i = numpy.random.rand(N)*90.
-		self.pa = numpy.random.rand(N)*180.
-		self.vel = numpy.random.normal(dv, size=N)
+        self.m[lm0] = 3. * m_temp[lm0]
+        self.m[lmi] = 1.5 * m_temp[lmi]
 
-		print 'Spatial distribution calculated'
+        self.mass_flag = numpy.zeros(N)
+        self.mass_flag[hm] = 2
+        self.mass_flag[lm0] = 10
+        self.mass_flag[lmi] = 11
+        self.mass_flag[lmii] = 12
+        self.mass_flag[bd] = 0
 
-		f=open('distribution.dat','w')
-		f.write('x(pc)     y(pc)      M(Msun)    i(deg)     PA(deg)    vel(km/s)  Mass flag\n')
-		for i in range(0,N): f.write('%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10i\n' %(self.x[i],self.y[i],self.m[i],self.i[i],self.pa[i],self.vel[i],self.mass_flag[i]))
-		f.close()
+        f.close()
+
+        for i in range(0,N): 
+            self.x[i] = rad_m[i]*cos(phi[i])
+            self.y[i] = rad_m[i]*sin(phi[i])
+
+        # Outflow inclination, PA and protostellar velocity dispersion
+        self.i = numpy.random.rand(N)*90.
+        self.pa = numpy.random.rand(N)*180.
+        self.vel = numpy.random.normal(dv, size=N)
+
+        #print ('Spatial distribution calculated')
+
+        f=open('distribution.dat','w')
+        
+        f.write('x(pc)     y(pc)      M(Msun)    i(deg)     PA(deg)    vel(km/s)  Mass flag\n')
+        
+        for i in range(0,N): f.write('%10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10i\n' %(self.x[i],self.y[i],self.m[i],self.i[i],self.pa[i],self.vel[i],self.mass_flag[i]))
+        
+        f.close()
 
 
 ################################################################################
@@ -322,15 +315,19 @@ class Mod_distribution:
 		########################################################################
 
 		config={}
-		for line in file("cluster_setup.dat","r").readlines():
-			config[line.split()[0]]=float(line.split()[1])
-			# print "%20s=%.5e" % (line.split()[0],config[line.split()[0]])
+		for line in open("cluster_setup_change.dat","r").readlines():
+		    config[line.split()[0]]=float(line.split()[1])
+		    # print "%20s=%.5e" % (line.split()[0],config[line.split()[0]])
 
 		### Cluster parameters
-		self.N = int(config['N'])   # number of sources
+		self.Mcm = int(config['Mcm'])   # Molecular Cloud Mass
 
 		### Initial mass function (currently only Chabrier 2003 IMF available)
 		self.imf_type = config['imf']
+
+		### Free fall time scaling and star formation efficiency
+		self.tffscale = config['tff']
+		self.SFE = config['SFE']
 
 		### Radial distribution of stars, from Adams et al. (2014)
 		self.r0 = config['r0']   # initial radius (pc)
@@ -339,8 +336,6 @@ class Mod_distribution:
 		self.p = config['p']   # power-law index for radius PDF
 
 		self.dv = config['dv']   # internal velocity dispersion (only relevant if creating spectral cubes; not implemented at the moment)
-
-		self.age = config['age']   # Cluster age
 
 		self.massrad=Mod_MassRad()
 		self.myplot=Mod_MyPlot()
@@ -352,17 +347,19 @@ class Mod_distribution:
 	def calc(self):
 
 		self.massrad.mass_radius(
-			N = self.N, 
-			N0 = self.N0, 
-			r0 = self.r0, 
-			alpha = self.alpha, 
-			p = self.p,
-			dv = self.dv,
-			age = self.age,
-			imf_type = self.imf_type)
+		    Mcm = self.Mcm, 
+		    N0 = self.N0, 
+		    r0 = self.r0, 
+		    alpha = self.alpha, 
+		    p = self.p,
+		    dv = self.dv,
+		    tffscale = self.tffscale,
+		    SFE = self.SFE,
+		    imf_type = self.imf_type)
 
 
 		mass = self.massrad.m
+		N = self.massrad.N
 		temp = numpy.zeros(self.N)
 		temp2 = numpy.zeros(20)
 		for i in range(0,self.N): temp[i] = log10(mass[i])
