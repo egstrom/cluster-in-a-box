@@ -212,7 +212,7 @@ class Mod_Template:
 		# lbol = obs[:,5]   # not worried about Lbol for the moment, can come later
 	
 		area_beam = obs[:,5] * obs[:,4]**2 / (np.pi * (beam_width/2.)**2)
-		i_dist = obs[:,8]*(obs[:,2]/dist0)**2 * fudge * jy_k/eta_a / area_beam
+		i_dist = obs[:,8]*(obs[:,2]/dist)**2 * fudge * jy_k/eta_a / area_beam
 	
 		fit, flag = ofit.correlation_test(menv, i_dist, tol)
 	
