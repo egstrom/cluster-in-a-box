@@ -1,0 +1,7 @@
+dist distribution.dat    # name of distribution file
+obs properties.dat       # name of file with observational properties
+bob 12000000             	 # distance (pc)
+dim 31                   # image size (pixels)
+psize 0.3                # pixel size (arcsec)
+beam 1.0                 # beam (arcsec)
+tol 0.6827               # correlation tolerance
