@@ -13,6 +13,9 @@ from astropy.utils.data import get_pkg_data_filename
 from astropy.io import fits
 from matplotlib.colors import LogNorm
 import copy
+import csv
+from astropy.convolution import Gaussian2DKernel
+from astropy.convolution import convolve
 
 ###Creating Galaxy spatial and mass Distributions ###
 
@@ -143,7 +146,7 @@ for n in tff:
 								fout.write(line.replace('1.0',str(n)))
 				f.close()
 				fout.close()
-				newname="Distribution/distributions_Mcm="+str(i)+"_tff="+str(n)+"_imf="+str(j)+"_SFE="+str(s)+".dat"
+				newname="distributions_Mcm="+str(i)+"_tff="+str(n)+"_imf="+str(j)+"_SFE="+str(s)+".dat"
 				distribution=cd.Mod_distribution()
 				distribution.calc()
 				os.rename("distribution.dat",newname)
@@ -160,8 +163,12 @@ for n in tff:
 				except OSError:
 					pass
 
+
+im = []
+mass = []
+N = []
 #Give same file name as in Galaxy_emission code
-with open('enter_file_name_here', 'r') as file:
+with open('galaxycluster_emission.csv', 'r') as file:
     reader = csv.reader(file, delimiter='\t')
     for row in reader:
         im.append(float(row[0]))
