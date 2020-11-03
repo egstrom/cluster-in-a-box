@@ -209,16 +209,16 @@ class Mod_MassRad:
 	############################################################################
 	# Random mass plus radial distributions
 	############################################################################
-    def __init__(self):
-    	pass
+	def __init__(self):
+		pass
 
-    def mass_radius(self,
-    	N = 3000, 
-    	N0 = 300, 
-    	r0 = 1.0, 
-    	alpha = 0.33, 
-    	p = 1.0,
-    	dv = 2.0,
+	def mass_radius(self,
+		N = 3000, 
+		N0 = 300, 
+		r0 = 1.0, 
+		alpha = 0.33, 
+		p = 1.0,
+		dv = 2.0,
 		age = 1.0,
 		imf_type = 0):
 
@@ -228,11 +228,11 @@ class Mod_MassRad:
 		f=open('output_distribution.dat','w')
 
 		age_temp = myf.age_dist(age=age)
-		print 'Age fractions calculated'
+		print ('Age fractions calculated')
 		f.write('Age distribution (Class 0, I, Flat, II, III): %4.2f, %4.2f, %4.2f, %4.2f, %4.2f \n' %(age_temp[0], age_temp[1], age_temp[2], age_temp[3], age_temp[4])) 
 
 		m_temp = myf.mass_dist(mmin = 0.01, mmax = 100., Nn = N, imf_type = imf_type)
-		print 'Mass distribution calculated'
+		print ('Mass distribution calculated')
 
 		f.write('min(M), max(M) = %4.2f, %4.2f Msun\n' %(min(m_temp), max(m_temp)))
 
@@ -294,7 +294,7 @@ class Mod_MassRad:
 		self.pa = numpy.random.rand(N)*180.
 		self.vel = numpy.random.normal(dv, size=N)
 
-		print 'Spatial distribution calculated'
+		print ('Spatial distribution calculated')
 
 		f=open('distribution.dat','w')
 		f.write('x(pc)     y(pc)      M(Msun)    i(deg)     PA(deg)    vel(km/s)  Mass flag\n')
@@ -322,7 +322,7 @@ class Mod_distribution:
 		########################################################################
 
 		config={}
-		for line in file("cluster_setup.dat","r").readlines():
+		for line in open("cluster_setup.dat","r").readlines():
 			config[line.split()[0]]=float(line.split()[1])
 			# print "%20s=%.5e" % (line.split()[0],config[line.split()[0]])
 

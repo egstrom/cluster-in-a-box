@@ -171,7 +171,7 @@ class Mod_Template:
         tffscale = config['tff']
         SFE = config['SFE']
 
-        filename='enter_file_name_here.csv'
+        filename='galaxycluster_emission.csv'
 
         if os.path.exists(filename):
             append_write = 'a' # append if already exist

@@ -141,27 +141,27 @@ class ObsFit:
 		# Always first try linear fit with y = a + b*x:
 		fit_m = ofit.lin_test(x, y)
 		if (fit_m[3] < tol) & (fit_m[2] > tol):
-			print "A proportionality I = %4.2f * Menv is acceptable at 1 sigma" %(fit_m[1])
-			print "Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3])
+			print ("A proportionality I = %4.2f * Menv is acceptable at 1 sigma" %(fit_m[1]))
+			print ("Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3]))
 			return [0, fit_m[1]], 'lin'
 		elif (fit_m[3] < tol) & (fit_m[2] < tol):
-			print "A linear fit with I = %4.2f + %4.2f * Menv is acceptable at 1 sigma" %(fit_m[0], fit_m[1])
-			print "Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3])
+			print ("A linear fit with I = %4.2f + %4.2f * Menv is acceptable at 1 sigma" %(fit_m[0], fit_m[1]))
+			print ("Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3]))
 			return [fit_m[0], fit_m[1]], 'lin'
 		# If a linear fit is not good enough, try power-law:
 		else:
 			fit_m = ofit.lin_test(np.log10(x), np.log10(y))
 			if (fit_m[3] < tol) & (fit_m[2] > tol):
-				print "A power-law fit with log(I) = %4.2f * log(Menv) is acceptable at 1 sigma" %(fit_m[0], fit_m[1])
-				print "Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3])
+				print ("A power-law fit with log(I) = %4.2f * log(Menv) is acceptable at 1 sigma" %(fit_m[0], fit_m[1]))
+				print ("Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3]))
 				return [0, fit_m[1]], 'pow'
 			elif (fit_m[3] < tol) & (fit_m[2] < tol):
-				print "A power-law fit with log(I) = %4.2f + %4.2f * log(Menv) is acceptable at 1 sigma" %(fit_m[0], fit_m[1])
-				print "Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3])
+				print ("A power-law fit with log(I) = %4.2f + %4.2f * log(Menv) is acceptable at 1 sigma" %(fit_m[0], fit_m[1]))
+				print ("Fit probabilities are %6.4f and %6.4f respectively" %(fit_m[2], fit_m[3]))
 				return [fit_m[0], fit_m[1]], 'pow'
 			else:
-				print 'I and Menv are not correlated, neither linearly nor by power-law'
-				print 'Model is terminated, please try again'
+				print ('I and Menv are not correlated, neither linearly nor by power-law')
+				print ('Model is terminated, please try again')
 				sys.exit()
 
 
@@ -178,12 +178,12 @@ class Mod_Template:
 	############################################################################
 	# Random mass plus radial distributions
 	############################################################################
-    def main(self):
+	def main(self):
 
 		self.myplot=Mod_MyPlot()
 	
 		config={}
-		for line in file("image_setup.dat","r").readlines():
+		for line in open("image_setup.dat","r").readlines():
 			config[line.split()[0]]=line.split()[1]
 	
 		# Parameters relating to new image
@@ -244,7 +244,7 @@ class Mod_Template:
 					i_peak =  (fit[0] + fit[1]*model[i,2])/npix*npix_beam / (2. * np.pi * (r0/pixel_size/1.517)**2)
 				if flag == 'pow': 
 					i_peak = 2. * np.pi * (r0/pixel_size/1.517)**2 / (10.**(fit[0] + fit[1]*np.log10(model[i,2])))/npix*npix_beam
-				print i_peak, model[i,2]
+				print (i_peak, model[i,2])
 				im = im + outflow.add_lobe(im, xob, yob, i_peak, r0/pixel_size)
 				im = im + outflow.add_lobe(im, xor, yor, i_peak, r0/pixel_size)
 	
@@ -292,7 +292,7 @@ class Mod_Template:
 		hdu = fits.PrimaryHDU(im_obs, header=header)
 		hdu.writeto('cluster_emission.fits', clobber = True)
 
-		print "Peak intensity in image is %4.2f Jy km/s/beam" %(im_obs.max())
+		print ("Peak intensity in image is %4.2f Jy km/s/beam" %(im_obs.max()))
 		
 		rnge = pixel_size*dim_pix/2.   # plotting range of image
 		plt.imshow(im_obs, vmin=0, vmax=im_obs.max(), aspect='equal', extent=(rnge,-rnge,-rnge,rnge), cmap='PuRd')
